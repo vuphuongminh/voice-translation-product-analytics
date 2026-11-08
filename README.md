@@ -19,6 +19,7 @@ test the pipeline in Python, and hand the results to a Power BI dashboard.
    which acquisition channel brings the best users?
 4. **Release impact** - Did the (fictional) engine v2 release on 2026-03-01
    make translations faster and more reliable?
+5. **Markets** - Do some countries convert to paid better than others?
 
 ## Key findings (synthetic data)
 
@@ -28,6 +29,7 @@ test the pipeline in Python, and hand the results to a Power BI dashboard.
 | Engine v2 reliability | Translation success rate rose from about 93% to 96% |
 | Activation | 68% of signups made a first translation and 43% reached 10+ translations, but only 3.6% subscribed; the biggest single drop is habit to payment |
 | Channels | Referral users convert to paid at ~5.4% vs ~1.5% for social ads, despite social ads bringing 1.7x more signups |
+| Markets | Paid conversion ranges from 1.5% (PH) to 5.4% (ID), but the 95% confidence intervals of almost all large markets overlap; with a few hundred users per country, the data cannot rank markets yet |
 | Retention | Week-1 retention is ~36% for cohorts before engine v2 and ~40% after; this is an observational comparison, not an A/B test, so it suggests but does not prove a causal effect |
 
 Full generated output: [`outputs/summary.md`](outputs/summary.md).
@@ -38,6 +40,8 @@ Full generated output: [`outputs/summary.md`](outputs/summary.md).
   paid conversion per channel rather than signups alone.
 - The 10+ translations to paid step is the weakest link: test a paywall or trial
   offer timed around the user's 10th translation.
+- Do not prioritise markets on conversion alone yet: wait for larger samples or
+  run a pricing test in the 2-3 largest markets.
 - Confirm the retention effect of engine v2 with a holdout or staged rollout
   before attributing growth to it.
 
@@ -46,7 +50,7 @@ Full generated output: [`outputs/summary.md`](outputs/summary.md).
 | | |
 |---|---|
 | ![DAU](outputs/charts/daily_active_users.png) | ![Funnel](outputs/charts/activation_funnel.png) |
-| ![Latency](outputs/charts/latency_by_week.png) | |
+| ![Latency](outputs/charts/latency_by_week.png) | ![Countries](outputs/charts/country_conversion.png) |
 
 ## Data model
 
@@ -75,7 +79,8 @@ users (1) ──< sessions (1) ──< translations
 │   ├── 02_weekly_retention_cohorts.sql
 │   ├── 03_activation_funnel.sql
 │   ├── 04_feature_usage.sql
-│   └── 05_language_pairs.sql
+│   ├── 05_language_pairs.sql
+│   └── 06_country_breakdown.sql
 ├── outputs/
 │   ├── tables/             # Power BI-ready CSV tables
 │   ├── charts/             # PNG charts used in this README
@@ -110,6 +115,8 @@ Or with `make`: `make all`.
   mistaken for churn.
 - **Latency impact**: relative change in median latency with a 2,000-sample
   bootstrap confidence interval. Medians are used because latency is right-skewed.
+- **Country conversion**: 95% Wilson score intervals, which behave better than
+  the normal approximation when rates are small and samples are a few hundred.
 - **Funnel**: counts users who ever reached each step. Recent signups have had
   less time to reach later steps, so late-funnel rates are a lower bound.
 

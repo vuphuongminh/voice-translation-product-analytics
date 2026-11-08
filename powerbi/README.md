@@ -17,6 +17,7 @@ In Power BI Desktop: **Get data > Text/CSV** and load these files from `outputs/
 | `feature_usage_weekly.csv` | week x mode | latency and success trend |
 | `language_pairs_top15.csv` | one row per language pair | top language pairs |
 | `latency_impact.csv` | one row per mode | engine v2 before / after cards |
+| `country_breakdown.csv` | one row per country | market comparison with confidence intervals |
 
 Set data types: `activity_date`, `cohort_week` and `week_start` as **Date**;
 rates as **Percentage**.

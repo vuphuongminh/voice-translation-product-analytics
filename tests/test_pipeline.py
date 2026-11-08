@@ -75,3 +75,15 @@ def test_bootstrap_detects_known_change():
     change, low, high = analyze.bootstrap_median_diff(before, after, n_boot=300)
     assert low <= change <= high
     assert -0.35 < change < -0.25
+
+
+def test_country_breakdown_covers_every_user(db):
+    countries = analyze.run_sql(db, "06_country_breakdown.sql")
+    assert countries["users"].sum() == 400
+    assert countries["paid_conversion"].between(0, 1).all()
+
+
+def test_wilson_interval_contains_the_rate():
+    low, high = analyze.wilson_interval(np.array([5, 0]), np.array([100, 20]))
+    assert low[0] < 0.05 < high[0]
+    assert low[1] >= 0 and high[1] > 0      # zero successes still gives an upper bound
