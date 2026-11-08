@@ -72,6 +72,18 @@ def bootstrap_median_diff(before: np.ndarray, after: np.ndarray,
     return float(point), float(low), float(high)
 
 
+def wilson_interval(successes: np.ndarray, n: np.ndarray, z: float = 1.96):
+    """95% Wilson score interval for a proportion; stays sensible for small samples."""
+    successes = np.asarray(successes, dtype=float)
+    n = np.asarray(n, dtype=float)
+    p = successes / n
+    denom = 1 + z**2 / n
+    centre = (p + z**2 / (2 * n)) / denom
+    half = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
+    # clip tiny floating-point overshoots (e.g. -1e-17) back into [0, 1]
+    return np.clip(centre - half, 0, 1), np.clip(centre + half, 0, 1)
+
+
 def latency_impact(translations: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for mode, grp in translations.groupby("mode"):
@@ -213,6 +225,32 @@ def chart_funnel(funnel: pd.DataFrame, path: Path) -> None:
     plt.close(fig)
 
 
+def chart_country_conversion(countries: pd.DataFrame, path: Path, top_n: int = 10) -> None:
+    """Paid conversion for the largest markets, sorted so the best market is on top."""
+    top = countries.nlargest(top_n, "users").sort_values("paid_conversion")
+    fig, ax = _figure(9, 4.6)
+    ax.barh(top["country"], top["paid_conversion"], color=SERIES["blue"], height=0.6)
+    if "paid_ci95_low" in top:
+        err = [top["paid_conversion"] - top["paid_ci95_low"],
+               top["paid_ci95_high"] - top["paid_conversion"]]
+        ax.errorbar(top["paid_conversion"], top["country"], xerr=err, fmt="none",
+                    ecolor=TEXT_SECONDARY, elinewidth=1, capsize=3)
+        label_x = top["paid_ci95_high"]
+    else:
+        label_x = top["paid_conversion"]
+    for country, x, rate, users in zip(top["country"], label_x, top["paid_conversion"], top["users"]):
+        ax.text(x, country, f"  {rate:.1%}  (n={users:,})", va="center", fontsize=9,
+                color=TEXT_PRIMARY)
+    ax.set_xlim(0, label_x.max() * 1.45)
+    _style(ax, f"Paid conversion by country (top {top_n} markets by users)",
+           "Whiskers: 95% Wilson confidence interval")
+    ax.grid(False)
+    ax.set_xticks([])
+    fig.tight_layout()
+    fig.savefig(path, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def chart_latency(feature_usage: pd.DataFrame, path: Path) -> None:
     fig, ax = _figure()
     names = {"voice_to_text": ("Voice to text", SERIES["blue"]),
@@ -280,9 +318,14 @@ def main() -> None:
         funnel_by_channel = run_sql(conn, "03_activation_funnel.sql")
         feature_usage = run_sql(conn, "04_feature_usage.sql")
         language_pairs = run_sql(conn, "05_language_pairs.sql")
+        countries = run_sql(conn, "06_country_breakdown.sql")
         translations = load_translations(conn)
 
     dau["stickiness"] = (dau["dau"] / dau["mau"]).round(4)
+    paid = (countries["paid_conversion"] * countries["users"]).round()
+    low, high = wilson_interval(paid, countries["users"])
+    countries["paid_ci95_low"] = low.round(4)
+    countries["paid_ci95_high"] = high.round(4)
     cohort_end = pd.to_datetime(retention["cohort_week"]) + pd.Timedelta(days=6)
     days_left = (pd.Timestamp(date(2026, 4, 30)) - cohort_end).dt.days
     retention["is_complete_week"] = retention["week_number"] <= (days_left + 1) // 7 - 1
@@ -298,6 +341,7 @@ def main() -> None:
         "funnel_overall": funnel,
         "feature_usage_weekly": feature_usage,
         "language_pairs_top15": language_pairs,
+        "country_breakdown": countries,
         "latency_impact": latency,
         "week1_retention_by_engine": w1,
     }
@@ -308,10 +352,11 @@ def main() -> None:
     chart_retention_heatmap(matrix, CHART_DIR / "retention_heatmap.png")
     chart_funnel(funnel, CHART_DIR / "activation_funnel.png")
     chart_latency(feature_usage, CHART_DIR / "latency_by_week.png")
+    chart_country_conversion(countries, CHART_DIR / "country_conversion.png")
     write_summary(dau, funnel, latency, w1, OUT_DIR / "summary.md")
 
     print(f"Wrote {len(tables)} tables to {TABLE_DIR.relative_to(ROOT)}")
-    print(f"Wrote 4 charts to {CHART_DIR.relative_to(ROOT)}")
+    print(f"Wrote 5 charts to {CHART_DIR.relative_to(ROOT)}")
     print((OUT_DIR / "summary.md").read_text(encoding="utf-8"))
 
 
