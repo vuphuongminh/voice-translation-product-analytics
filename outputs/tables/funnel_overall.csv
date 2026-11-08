@@ -1,0 +1,6 @@
+step,users,step_order,pct_of_signups,pct_of_previous
+signed_up,5000,1,1.0,1.0
+completed_onboarding,3884,2,0.7768,0.7768
+first_translation,3420,3,0.684,0.8805
+ten_plus_translations,2140,4,0.428,0.6257
+subscribed,181,5,0.0362,0.0846

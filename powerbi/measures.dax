@@ -1,0 +1,56 @@
+-- Measures for the TalkBridge (fictional) product analytics dashboard.
+-- Table names match the CSV files in outputs/tables/.
+
+Latest DAU =
+VAR LastDay = MAX ( daily_active_users[activity_date] )
+RETURN
+    CALCULATE ( SUM ( daily_active_users[dau] ), daily_active_users[activity_date] = LastDay )
+
+Latest MAU =
+VAR LastDay = MAX ( daily_active_users[activity_date] )
+RETURN
+    CALCULATE ( SUM ( daily_active_users[mau] ), daily_active_users[activity_date] = LastDay )
+
+Stickiness = DIVIDE ( [Latest DAU], [Latest MAU] )
+
+DAU 7d Avg =
+AVERAGEX (
+    DATESINPERIOD ( Calendar[Date], MAX ( Calendar[Date] ), -7, DAY ),
+    CALCULATE ( SUM ( daily_active_users[dau] ) )
+)
+
+Retention Rate =
+DIVIDE (
+    SUM ( retention_cohorts[retained_users] ),
+    SUM ( retention_cohorts[cohort_users] )
+)
+
+Signup To Paid =
+DIVIDE (
+    CALCULATE ( SUM ( funnel_overall[users] ), funnel_overall[step] = "subscribed" ),
+    CALCULATE ( SUM ( funnel_overall[users] ), funnel_overall[step] = "signed_up" )
+)
+
+Step Conversion =
+DIVIDE (
+    SUM ( funnel_overall[users] ),
+    CALCULATE (
+        SUM ( funnel_overall[users] ),
+        FILTER (
+            ALL ( funnel_overall ),
+            funnel_overall[step_order] = MAX ( funnel_overall[step_order] ) - 1
+        )
+    )
+)
+
+Avg Latency (ms) =
+DIVIDE (
+    SUMX ( feature_usage_weekly, feature_usage_weekly[avg_latency_ms] * feature_usage_weekly[translations] ),
+    SUM ( feature_usage_weekly[translations] )
+)
+
+Success Rate =
+DIVIDE (
+    SUMX ( feature_usage_weekly, feature_usage_weekly[success_rate] * feature_usage_weekly[translations] ),
+    SUM ( feature_usage_weekly[translations] )
+)

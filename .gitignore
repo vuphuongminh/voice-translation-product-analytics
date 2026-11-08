@@ -1,0 +1,16 @@
+# generated data (rebuild with: python src/generate_data.py)
+data/raw/
+data/*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Power BI
+*.pbix
+
+# OS
+.DS_Store
+Thumbs.db
